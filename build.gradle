@@ -1,69 +1,129 @@
-buildscript {
-    repositories {
-        jcenter()
-        maven { url = "https://files.minecraftforge.net/maven" }
-    }
-    dependencies {
-        classpath 'net.minecraftforge.gradle:ForgeGradle:2.3-SNAPSHOT'
-    }
+plugins {
+    id 'eclipse'
+    id 'idea'
+    id 'maven-publish'
+    id 'net.minecraftforge.gradle' version '[6.0,6.2)'
 }
-apply plugin: 'net.minecraftforge.gradle.forge'
 
+def modId = project.mod_id
 
-group = 'com.fiskmods.lightsabers'
-version = '1.2.3'
-archivesBaseName = 'AdvancedLightsabers-1.12.2'
+group = project.mod_group
+version = project.mod_version
 
-sourceCompatibility = targetCompatibility = '1.8' // Need this here so eclipse task generates correctly.
-compileJava {
-    sourceCompatibility = targetCompatibility = '1.8'
+base {
+    archivesName = modId
+}
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(17)
+    }
+    withSourcesJar()
+}
+
+sourceSets {
+    main {
+        resources {
+            srcDir 'src/generated/resources'
+        }
+    }
 }
 
 minecraft {
-    version = "1.12.2-14.23.5.2847"
-    runDir = "run"
-    mappings = 'stable_39'
+    mappings channel: project.mappings_channel, version: project.mappings_version
+    copyIdeResources = true
+
+    runs {
+        configureEach {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+
+            mods {
+                "${modId}" {
+                    source sourceSets.main
+                }
+            }
+        }
+
+        client {
+        }
+
+        server {
+            property 'forge.enabledGameTestNamespaces', modId
+        }
+
+        gameTest {
+            property 'forge.enabledGameTestNamespaces', modId
+        }
+
+        data {
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            args '--mod', modId, '--all', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
+        }
+    }
 }
 
 repositories {
-    maven {
-        name = "CB Repo."
-        url = "https://chickenbones.net/maven/"
-    }
-    maven {
-        name = "JEI Maven."
-        url = "https://dvs1.progwml6.com/files/maven"
-    }
+    mavenCentral()
+    maven { url = 'https://maven.minecraftforge.net' }
 }
 
 dependencies {
-    // Specify the version of Minecraft to use. If this is any group other than 'net.minecraft' it is assumed
-    // that the dep is a ForgeGradle 'patcher' dependency, and its patches will be applied.
-    // The userdev artifact is a special name and will get all sorts of transformations applied to it.
-
-
-    implementation "codechicken:CodeChickenLib:1.12.2-3.2.3.358:deobf"
-    compile "mezz.jei:jei_1.12.2:4.16.1.301"
-    implementation "codechicken:NotEnoughItems:1.12.2-2.4.3.245:deobf"
-
+    minecraft "net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}"
 }
 
-processResources {
-    // this will ensure that this task is redone when the versions change.
-    inputs.property "version", project.version
-    inputs.property "mcversion", project.minecraft.version
+tasks.withType(ProcessResources).configureEach {
+    inputs.property 'modId', modId
+    inputs.property 'modVersion', project.mod_version
+    inputs.property 'modName', project.mod_name
+    inputs.property 'modAuthors', project.mod_authors
+    inputs.property 'modLicense', project.mod_license
+    inputs.property 'modDescription', project.mod_description
+    filteringCharset = 'UTF-8'
 
-    // replace stuff in mcmod.info, nothing else
-    from(sourceSets.main.resources.srcDirs) {
-        include 'mcmod.info'
-
-        // replace version and mcversion
-        expand 'version':project.version, 'mcversion':project.minecraft.version
-    }
-
-    // copy everything else except the mcmod.info
-    from(sourceSets.main.resources.srcDirs) {
-        exclude 'mcmod.info'
+    filesMatching('META-INF/mods.toml') {
+        expand ([
+            'mod_id': modId,
+            'mod_version': project.mod_version,
+            'mod_name': project.mod_name,
+            'mod_authors': project.mod_authors,
+            'mod_license': project.mod_license,
+            'mod_description': project.mod_description
+        ])
     }
 }
 
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+tasks.withType(Javadoc).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+jar {
+    manifest {
+        attributes(
+            'Specification-Title': project.mod_name,
+            'Specification-Vendor': project.mod_authors,
+            'Specification-Version': project.mod_version,
+            'Implementation-Title': project.name,
+            'Implementation-Version': project.mod_version,
+            'Implementation-Vendor': project.mod_authors
+        )
+    }
+}
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifact jar
+            artifact sourcesJar
+        }
+    }
+    repositories {
+        mavenLocal()
+    }
+}

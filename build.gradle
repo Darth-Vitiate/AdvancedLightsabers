@@ -47,24 +47,27 @@ minecraft {
         }
 
         client {
+            taskName = 'runClient'
         }
 
         server {
+            taskName = 'runServer'
             property 'forge.enabledGameTestNamespaces', modId
         }
 
         gameTest {
+            taskName = 'runGameTestServer'
             property 'forge.enabledGameTestNamespaces', modId
         }
 
         data {
+            taskName = 'runData'
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
             args '--mod', modId, '--all', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
         }
     }
 }
-
 repositories {
     mavenCentral()
     maven { url = 'https://maven.minecraftforge.net' }

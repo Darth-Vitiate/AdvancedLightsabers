@@ -1,10 +1,5 @@
 package com.fiskmods.lightsabers.asm.transformers;
 
-import java.io.DataOutputStream;
-import java.io.File;
-import java.io.FileOutputStream;
-import java.util.List;
-
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -15,34 +10,35 @@ import org.objectweb.asm.tree.ClassNode;
 import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.MethodNode;
 
-import com.fiskmods.lightsabers.Lightsabers;
-import com.fiskmods.lightsabers.asm.ALLoadingPlugin;
+import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.util.List;
 
-import net.minecraft.launchwrapper.IClassTransformer;
-
-public abstract class ClassTransformerBase implements IClassTransformer, Opcodes
-{
-    public static final Logger LOGGER = LogManager.getFormatterLogger(Lightsabers.NAME);
+/**
+ * Custom base transformer compatible with modern Forge/ModLauncher (1.20.1+)
+ * This does NOT use LaunchWrapper or IClassTransformer.
+ * Instead, you call transform(...) manually from your TransformationService or ModLauncher hook.
+ */
+public abstract class ClassTransformerBase implements Opcodes {
+    public static final Logger LOGGER = LogManager.getLogger("Lightsabers");
 
     protected final String classPath;
     protected final String unobfClass;
 
-    public ClassTransformerBase(String path)
-    {
-        classPath = path;
-        unobfClass = path.substring(path.lastIndexOf('.') + 1);
+    public ClassTransformerBase(String path) {
+        this.classPath = path;
+        this.unobfClass = path.substring(path.lastIndexOf('.') + 1);
     }
 
-    @Override
-    public byte[] transform(String name, String transformedName, byte[] bytes)
-    {
-        try
-        {
-            if (transformedName.equals(classPath))
-            {
-                LOGGER.info("Patching Class %s (%s)", unobfClass, name);
+    /**
+     * Entry point called by your TransformationService or loader.
+     */
+    public byte[] transform(String name, byte[] bytes) {
+        try {
+            if (shouldTransform(name)) {
+                LOGGER.info("Patching Class {} ({})", unobfClass, name);
 
-                ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS);
                 ClassReader reader = new ClassReader(bytes);
                 ClassNode node = new ClassNode();
                 reader.accept(node, 0);
@@ -50,33 +46,34 @@ public abstract class ClassTransformerBase implements IClassTransformer, Opcodes
                 setupMappings();
                 boolean success = processFields(node.fields) && processMethods(node.methods);
                 addInterface(node.interfaces);
+
+                ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
                 node.accept(writer);
-                
-                if (success)
-                {
-                    LOGGER.debug("Patching Class %s done", unobfClass);
-                }
-                else
-                {
-                    LOGGER.error("Patching Class %s FAILED!", unobfClass);
+
+                if (success) {
+                    LOGGER.debug("Patching Class {} done", unobfClass);
+                } else {
+                    LOGGER.error("Patching Class {} FAILED!", unobfClass);
                 }
 
-                writeClassFile(writer, String.format("%s (%s)", unobfClass, name));
-
+                writeClassFile(writer, unobfClass + "_DEBUG");
                 return writer.toByteArray();
             }
-        }
-        catch (Exception e)
-        {
+        } catch (Exception e) {
+            LOGGER.error("Error transforming {}: {}", unobfClass, e);
             e.printStackTrace();
         }
-
         return bytes;
     }
 
-    public void addInterface(List<String> interfaces)
-    {
+    /**
+     * Override to define which classes this transformer applies to.
+     */
+    protected boolean shouldTransform(String name) {
+        return name.replace('/', '.').equals(classPath);
     }
+
+    public void addInterface(List<String> interfaces) {}
 
     public abstract boolean processMethods(List<MethodNode> methods);
 
@@ -84,35 +81,24 @@ public abstract class ClassTransformerBase implements IClassTransformer, Opcodes
 
     public abstract void setupMappings();
 
-    public void sendPatchLog(String method)
-    {
-        LOGGER.log(Level.INFO, "\tPatching method %s in %s", method, unobfClass);
+    public void sendPatchLog(String method) {
+        LOGGER.log(Level.INFO, "  Patching method {} in {}", method, unobfClass);
     }
 
-    public static void writeClassFile(ClassWriter cw, String name)
-    {
-        try
-        {
+    public static void writeClassFile(ClassWriter cw, String name) {
+        try {
             File outDir = new File("debug/");
             outDir.mkdirs();
-            DataOutputStream dout = new DataOutputStream(new FileOutputStream(new File(outDir, name + ".class")));
-            dout.write(cw.toByteArray());
-            dout.flush();
-            dout.close();
-        }
-        catch (Exception e)
-        {
+            File file = new File(outDir, name + ".class");
+            try (DataOutputStream dout = new DataOutputStream(new FileOutputStream(file))) {
+                dout.write(cw.toByteArray());
+            }
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    public static String getClassName(String className)
-    {
+    public static String getClassName(String className) {
         return "net/minecraft/" + className.replace(".", "/");
-    }
-
-    public static String getMappedName(String name, String devName)
-    {
-        return ALLoadingPlugin.obfuscatedEnv ? name : devName;
     }
 }

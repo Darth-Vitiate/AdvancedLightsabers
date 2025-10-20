@@ -1,74 +1,83 @@
 package com.fiskmods.lightsabers.asm.transformers;
 
-import java.util.List;
-
+import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
-import org.objectweb.asm.tree.AbstractInsnNode;
-import org.objectweb.asm.tree.FieldNode;
-import org.objectweb.asm.tree.InsnList;
-import org.objectweb.asm.tree.MethodInsnNode;
-import org.objectweb.asm.tree.MethodNode;
+import org.objectweb.asm.tree.*;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import com.fiskmods.lightsabers.asm.ASMHooks;
 
-public class ClassTransformerEntityPlayer extends ClassTransformerBase
-{
+import java.util.List;
+
+/**
+ * Modernized version of the old EntityPlayer transformer.
+ *
+ * Target: net.minecraft.world.entity.player.Player
+ * Purpose: replace calls to Entity.hurt(DamageSource, float)
+ *          with ASMHooks.attackEntityFrom(Entity, DamageSource, float)
+ *          inside Player.attack(Entity).
+ */
+public class ClassTransformerEntityPlayer extends ClassTransformerBase implements Opcodes {
+    private static final Logger LOGGER = LogManager.getLogger("Lightsabers");
+
     public static String varPlayer;
     public static String varEntity;
 
-    public ClassTransformerEntityPlayer()
-    {
-        super("net.minecraft.entity.player.EntityPlayer");
+    public ClassTransformerEntityPlayer() {
+        super("net.minecraft.world.entity.player.Player");
     }
 
     @Override
-    public boolean processMethods(List<MethodNode> methods)
-    {
-        boolean flag = false;
+    public boolean processMethods(List<MethodNode> methods) {
+        boolean modified = false;
 
-        for (MethodNode method : methods)
-        {
-            if (method.name.equals(getMappedName("r", "attackTargetEntityWithCurrentItem")) && method.desc.equals("(L" + varEntity + ";)V"))
-            {
-                InsnList list = new InsnList();
+        for (MethodNode method : methods) {
+            // In modern versions, attackTargetEntityWithCurrentItem() → attack(Lnet/minecraft/world/entity/Entity;)V
+            if (method.name.equals("attack") && method.desc.equals("(Lnet/minecraft/world/entity/Entity;)V")) {
 
-                for (int i = 0; i < method.instructions.size(); ++i)
-                {
-                    AbstractInsnNode node = method.instructions.get(i);
+                InsnList newInstructions = new InsnList();
 
-                    if (node instanceof MethodInsnNode)
-                    {
-                        MethodInsnNode methodNode = (MethodInsnNode) node;
+                for (AbstractInsnNode node : method.instructions) {
+                    if (node instanceof MethodInsnNode m) {
+                        // Replacing Entity.hurt(DamageSource, float) with ASMHooks.attackEntityFrom(Entity, DamageSource, float)
+                        if (m.getOpcode() == INVOKEVIRTUAL
+                                && m.owner.equals("net/minecraft/world/entity/Entity")
+                                && m.name.equals("hurt")
+                                && m.desc.equals("(Lnet/minecraft/world/damagesource/DamageSource;F)Z")) {
 
-                        if (methodNode.name.equals(getMappedName("a", "attackEntityFrom")) && methodNode.desc.equals(getMappedName("(Lro;F)Z", "(Lnet/minecraft/util/DamageSource;F)Z")))
-                        {
-                            list.add(new MethodInsnNode(INVOKESTATIC, Type.getInternalName(ASMHooks.class), "attackEntityFrom", getMappedName("(L" + varEntity + ";Lro;F)Z", "(L" + varEntity + ";Lnet/minecraft/util/DamageSource;F)Z"), false));
+                            newInstructions.add(new MethodInsnNode(INVOKESTATIC,
+                                    Type.getInternalName(ASMHooks.class),
+                                    "attackEntityFrom",
+                                    "(Lnet/minecraft/world/entity/Entity;Lnet/minecraft/world/damagesource/DamageSource;F)Z",
+                                    false));
+
+                            LOGGER.debug("Replaced hurt() call with ASMHooks.attackEntityFrom() in {}", unobfClass);
+                            modified = true;
                             continue;
                         }
                     }
 
-                    list.add(node);
+                    newInstructions.add(node);
                 }
 
                 method.instructions.clear();
-                method.instructions.add(list);
-                flag = true;
+                method.instructions.add(newInstructions);
             }
         }
 
-        return flag;
+        return modified;
     }
 
     @Override
-    public boolean processFields(List<FieldNode> fields)
-    {
+    public boolean processFields(List<FieldNode> fields) {
         return true;
     }
 
     @Override
-    public void setupMappings()
-    {
-        varPlayer = getMappedName("yz", "net/minecraft/entity/player/EntityPlayer");
-        varEntity = getMappedName("sa", "net/minecraft/entity/Entity");
+    public void setupMappings() {
+        // Dev names; obfuscated mappings not needed in 1.20+ development
+        varPlayer = "net/minecraft/world/entity/player/Player";
+        varEntity = "net/minecraft/world/entity/Entity";
     }
 }

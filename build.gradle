@@ -1,128 +1,139 @@
-plugins {
-    id 'eclipse'
-    id 'idea'
-    id 'maven-publish'
-    id 'net.minecraftforge.gradle' version '[6.0,6.2)'
+buildscript {
+    repositories {
+        maven { url = 'https://maven.minecraftforge.net' }
+        maven { url = 'https://repo.spongepowered.org/repository/maven-public/' }
+        maven { url = 'https://maven.parchmentmc.org' }
+        mavenCentral()
+    }
+    dependencies {
+        classpath group: 'net.minecraftforge.gradle', name: 'ForgeGradle', version: '5.1.+'
+        classpath 'org.spongepowered:mixingradle:0.7-SNAPSHOT'
+        classpath 'org.parchmentmc:librarian:1.+'
+    }
 }
 
-def modId = project.mod_id
+apply plugin: 'net.minecraftforge.gradle'
+apply plugin: 'org.spongepowered.mixin'
+apply plugin: 'org.parchmentmc.librarian.forgegradle'
 
-group = project.mod_group
-version = project.mod_version
-
-base {
-    archivesName = modId
-}
+group = 'com.fiskmods'
+version = '2.0'
 
 java {
-    toolchain {
-        languageVersion = JavaLanguageVersion.of(17)
-    }
-    withSourcesJar()
-}
-
-sourceSets {
-    main {
-        resources {
-            srcDir 'src/generated/resources'
-        }
-    }
+    archivesBaseName = 'lightsabers'
+    toolchain.languageVersion = JavaLanguageVersion.of(17)
 }
 
 minecraft {
-    mappings channel: project.mappings_channel, version: project.mappings_version
-    copyIdeResources = true
+    mappings channel: 'parchment', version: parchment_version
+
+    accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
 
     runs {
-        configureEach {
+        client {
             workingDirectory project.file('run')
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
-
-            mods {
-                "${modId}" {
-                    source sourceSets.main
-                }
-            }
+            property 'forge.enabledGameTestNamespaces', 'lightsabers'
+            mods { lightsabers { source sourceSets.main } }
         }
-
-        client {
-        }
-
         server {
-            property 'forge.enabledGameTestNamespaces', modId
-        }
-
-        gameTest {
-            property 'forge.enabledGameTestNamespaces', modId
-        }
-
-        data {
+            workingDirectory project.file('run')
             property 'forge.logging.markers', 'REGISTRIES'
             property 'forge.logging.console.level', 'debug'
-            args '--mod', modId, '--all', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
+            property 'forge.enabledGameTestNamespaces', 'lightsabers'
+            mods { lightsabers { source sourceSets.main } }
+        }
+        gameTestServer {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            property 'forge.enabledGameTestNamespaces', 'lightsabers'
+            mods { lightsabers { source sourceSets.main } }
+        }
+        data {
+            workingDirectory project.file('run')
+            property 'forge.logging.markers', 'REGISTRIES'
+            property 'forge.logging.console.level', 'debug'
+            args '--mod', 'lightsabers', '--all', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
+            mods { lightsabers { source sourceSets.main } }
         }
     }
 }
+
+mixin {
+    add sourceSets.main, "lightsabers.refmap.json"
+    config "lightsabers.mixins.json"
+}
+
+sourceSets.main.resources { srcDir 'src/generated/resources' }
+
 repositories {
     mavenCentral()
-    maven { url = 'https://maven.minecraftforge.net' }
+    maven { url = "https://maven.minecraftforge.net" }
+    maven { url = "https://jitpack.io" }
+    maven { url = "https://repo.spongepowered.org/repository/maven-public/" }
+    maven { url = "https://maven.parchmentmc.org" }
+    // JEI lives here for 1.19.4
+    maven { url = "https://maven.blamejared.com" }
+    maven {
+        name = "Progwml6's maven"
+        url = "https://dvs1.progwml6.com/files/maven/"
+    }
+    maven {
+        name = "Jared's maven"
+        url = "https://maven.blamejared.com/"
+    }
+    maven {
+        name = "ModMaven"
+        url = "https://modmaven.dev"
+    }
+    maven {
+        name = "ModMaven"
+        url = "https://modmaven.dev"
+    }
+    maven {
+        name = "CurseMaven"
+        url = "https://www.cursemaven.com"
+    }
+    maven {
+        name = 'GeckoLib'
+        url 'https://dl.cloudsmith.io/public/geckolib3/geckolib/maven/'
+        content {
+            includeGroupByRegex("software\\.bernie.*")
+            includeGroup("com.eliotlash.mclib")
+        }
+    }
 }
 
 dependencies {
-    minecraft "net.minecraftforge:forge:${project.minecraft_version}-${project.forge_version}"
+    minecraft "net.minecraftforge:forge:${forge_version}"
+
+    implementation(annotationProcessor("com.github.bawnorton.mixinsquared:mixinsquared-common:0.0.2"))
+    implementation(jarJar("com.github.bawnorton.mixinsquared:mixinsquared-forge:0.0.2")) { jarJar.ranged(it, "[0.0.2,)") }
+    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
+
+    // GeckoLib
+    implementation("com.eliotlash.mclib:mclib:20")
+
+    // Citadel (Curse 1.19.4 build)
+
+    // JEI (1.19.4)
+    implementation "org.joml:joml:${joml_version}"
+    implementation "javax.vecmath:vecmath:${vecmath_version}"
 }
 
-tasks.withType(ProcessResources).configureEach {
-    inputs.property 'modId', modId
-    inputs.property 'modVersion', project.mod_version
-    inputs.property 'modName', project.mod_name
-    inputs.property 'modAuthors', project.mod_authors
-    inputs.property 'modLicense', project.mod_license
-    inputs.property 'modDescription', project.mod_description
-    filteringCharset = 'UTF-8'
 
-    filesMatching('META-INF/mods.toml') {
-        expand ([
-            'mod_id': modId,
-            'mod_version': project.mod_version,
-            'mod_name': project.mod_name,
-            'mod_authors': project.mod_authors,
-            'mod_license': project.mod_license,
-            'mod_description': project.mod_description
+jar {
+    manifest {
+        attributes([
+                "Specification-Title": "lightsabers",
+                "Specification-Version": "1",
+                "Implementation-Title": project.name,
+                "Implementation-Version": project.jar.archiveVersion,
+                "Implementation-Timestamp": new Date().format("yyyy-MM-dd'T'HH:mm:ssZ")
         ])
     }
 }
 
-tasks.withType(JavaCompile).configureEach {
-    options.encoding = 'UTF-8'
-}
-
-tasks.withType(Javadoc).configureEach {
-    options.encoding = 'UTF-8'
-}
-
-jar {
-    manifest {
-        attributes(
-            'Specification-Title': project.mod_name,
-            'Specification-Vendor': project.mod_authors,
-            'Specification-Version': project.mod_version,
-            'Implementation-Title': project.name,
-            'Implementation-Version': project.mod_version,
-            'Implementation-Vendor': project.mod_authors
-        )
-    }
-}
-
-publishing {
-    publications {
-        mavenJava(MavenPublication) {
-            artifact jar
-            artifact sourcesJar
-        }
-    }
-    repositories {
-        mavenLocal()
-    }
-}
+jar.finalizedBy('reobfJar')

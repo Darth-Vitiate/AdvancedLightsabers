@@ -1,105 +1,103 @@
 package com.fiskmods.lightsabers.asm.transformers;
 
+import org.objectweb.asm.*;
+import org.objectweb.asm.tree.*;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import com.fiskmods.lightsabers.asm.ASMHooksClient;
+
 import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.util.List;
 
-import org.objectweb.asm.ClassReader;
-import org.objectweb.asm.ClassWriter;
-import org.objectweb.asm.Opcodes;
-import org.objectweb.asm.Type;
-import org.objectweb.asm.tree.AbstractInsnNode;
-import org.objectweb.asm.tree.ClassNode;
-import org.objectweb.asm.tree.InsnList;
-import org.objectweb.asm.tree.MethodInsnNode;
-import org.objectweb.asm.tree.MethodNode;
+/**
+ * Modern replacement for IClassTransformer.
+ * This can be registered and called from your ModLauncher TransformationService.
+ */
+public class ClassTransformerColor implements Opcodes {
+    private static final Logger LOGGER = LogManager.getLogger("Lightsabers");
 
-import com.fiskmods.lightsabers.asm.ASMHooksClient;
+    public ClassTransformerColor() {}
 
-import net.minecraft.launchwrapper.IClassTransformer;
+    /**
+     * Called manually from your TransformationService when a target class is being transformed.
+     *
+     * @param className The class name being transformed (e.g., net.minecraft.client.renderer.GameRenderer)
+     * @param bytes     Original class bytes
+     * @return Modified class bytes
+     */
+    public byte[] transform(String className, byte[] bytes) {
+        try {
+            ClassReader reader = new ClassReader(bytes);
+            ClassNode node = new ClassNode();
+            reader.accept(node, 0);
 
-public class ClassTransformerColor implements IClassTransformer, Opcodes
-{
-    @Override
-    public byte[] transform(String name, String transformedName, byte[] bytes)
-    {
-        try
-        {
-            ClassReader cr = new ClassReader(bytes);
-            ClassNode cn = new ClassNode();
-            cr.accept(cn, 0);
+            boolean success = processMethods(node.methods);
 
-            boolean success = processMethods(cn.methods);
+            ClassWriter writer = new ClassWriter(ClassWriter.COMPUTE_MAXS | ClassWriter.COMPUTE_FRAMES);
+            node.accept(writer);
 
-            ClassWriter cw = new ClassWriter(ClassWriter.COMPUTE_MAXS);
-            cn.accept(cw);
-
-//			if (success)
-//			{
-//				writeClassFile(cw, transformedName.substring(transformedName.lastIndexOf('.') + 1) + " (" + name + ")");
-//			}
-
-            return cw.toByteArray();
-        }
-        catch (Exception e)
-        {
-            if (!(e instanceof NullPointerException))
-            {
-                e.printStackTrace();
+            if (success) {
+                LOGGER.debug("Patched OpenGL color calls in {}", className);
             }
+
+            // Optional: output debug .class file
+            // writeClassFile(writer, className.replace('.', '_'));
+            return writer.toByteArray();
+        } catch (Exception e) {
+            LOGGER.error("Error transforming {}: {}", className, e);
+            e.printStackTrace();
         }
 
         return bytes;
     }
 
-    public boolean processMethods(List<MethodNode> methods)
-    {
-        boolean flag = false;
+    public boolean processMethods(List<MethodNode> methods) {
+        boolean modified = false;
 
-        for (MethodNode method : methods)
-        {
-            InsnList list = new InsnList();
+        for (MethodNode method : methods) {
+            InsnList newList = new InsnList();
 
-            for (int j = 0; j < method.instructions.size(); ++j)
-            {
+            for (int j = 0; j < method.instructions.size(); ++j) {
                 AbstractInsnNode node = method.instructions.get(j);
 
-                if (node instanceof MethodInsnNode)
-                {
-                    MethodInsnNode methodNode = (MethodInsnNode) node;
+                if (node instanceof MethodInsnNode methodNode) {
+                    if (node.getOpcode() == INVOKESTATIC
+                            && "org/lwjgl/opengl/GL11".equals(methodNode.owner)
+                            && (methodNode.name.startsWith("glColor3") || methodNode.name.startsWith("glColor4"))) {
 
-                    if (node.getOpcode() == INVOKESTATIC && methodNode.owner.equals("org/lwjgl/opengl/GL11") && (methodNode.name.startsWith("glColor3") || methodNode.name.startsWith("glColor4")))
-                    {
-                        list.add(new MethodInsnNode(INVOKESTATIC, Type.getInternalName(ASMHooksClient.class), methodNode.name, methodNode.desc, false));
-                        flag = true;
+                        // Replace static GL11 call with our custom hook
+                        newList.add(new MethodInsnNode(INVOKESTATIC,
+                                Type.getInternalName(ASMHooksClient.class),
+                                methodNode.name,
+                                methodNode.desc,
+                                false));
+                        modified = true;
                         continue;
                     }
                 }
 
-                list.add(node);
+                newList.add(node);
             }
 
             method.instructions.clear();
-            method.instructions.add(list);
+            method.instructions.add(newList);
         }
 
-        return flag;
+        return modified;
     }
 
-    public static void writeClassFile(ClassWriter cw, String name)
-    {
-        try
-        {
+    public static void writeClassFile(ClassWriter cw, String name) {
+        try {
             File outDir = new File("debug/glColor/");
             outDir.mkdirs();
-            DataOutputStream dout = new DataOutputStream(new FileOutputStream(new File(outDir, name + ".class")));
-            dout.write(cw.toByteArray());
-            dout.flush();
-            dout.close();
-        }
-        catch (Exception e)
-        {
+            File outFile = new File(outDir, name + ".class");
+            try (DataOutputStream dout = new DataOutputStream(new FileOutputStream(outFile))) {
+                dout.write(cw.toByteArray());
+            }
+        } catch (Exception e) {
             e.printStackTrace();
         }
     }

@@ -1,125 +1,112 @@
 package com.fiskmods.lightsabers.asm.transformers;
 
-import java.util.List;
-
+import org.objectweb.asm.Opcodes;
 import org.objectweb.asm.Type;
-import org.objectweb.asm.tree.AbstractInsnNode;
-import org.objectweb.asm.tree.FieldNode;
-import org.objectweb.asm.tree.InsnList;
-import org.objectweb.asm.tree.MethodInsnNode;
-import org.objectweb.asm.tree.MethodNode;
-import org.objectweb.asm.tree.VarInsnNode;
+import org.objectweb.asm.tree.*;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 import com.fiskmods.lightsabers.helper.ModelHelper;
 
-public class ClassTransformerModelBiped extends ClassTransformerBase
-{
+import java.util.List;
+
+/**
+ * Modernized version of ClassTransformerModelBiped for Minecraft 1.20.1+.
+ *
+ * Target: net.minecraft.client.model.HumanoidModel
+ * Injects ModelHelper.renderBipedPre/Post calls around HumanoidModel.renderToBuffer().
+ */
+public class ClassTransformerModelBiped extends ClassTransformerBase implements Opcodes {
+    private static final Logger LOGGER = LogManager.getLogger("Lightsabers");
+
     public static String varPlayer;
     public static String varEntity;
 
-    public ClassTransformerModelBiped()
-    {
-        super("net.minecraft.client.model.ModelBiped");
+    public ClassTransformerModelBiped() {
+        super("net.minecraft.client.model.HumanoidModel");
     }
 
     @Override
-    public boolean processMethods(List<MethodNode> methods)
-    {
-        boolean flag = false;
+    public boolean processMethods(List<MethodNode> methods) {
+        boolean modified = false;
 
-        for (MethodNode method : methods)
-        {
-            if (method.name.equals(getMappedName("a", "render")) && method.desc.equals(getMappedName("(Lsa;FFFFFF)V", "(Lnet/minecraft/entity/Entity;FFFFFF)V")))
-            {
-                InsnList list = new InsnList();
+        for (MethodNode method : methods) {
 
-                for (int i = 0; i < method.instructions.size(); ++i)
-                {
-                    AbstractInsnNode node = method.instructions.get(i);
+            // Target HumanoidModel.renderToBuffer(PoseStack, VertexConsumer, int, int, float, float, float, float)
+            if (method.name.equals("renderToBuffer") &&
+                    method.desc.equals("(Lcom/mojang/blaze3d/vertex/PoseStack;Lcom/mojang/blaze3d/vertex/VertexConsumer;IIFFFF)V")) {
 
-                    if (node instanceof MethodInsnNode)
-                    {
-                        MethodInsnNode methodNode = (MethodInsnNode) node;
+                InsnList newList = new InsnList();
 
-                        if (methodNode.name.equals(getMappedName("a", "setRotationAngles")) && methodNode.desc.equals(getMappedName("(FFFFFFLsa;)V", "(FFFFFFLnet/minecraft/entity/Entity;)V")))
-                        {
-                            list.add(node);
-                            list.add(new VarInsnNode(ALOAD, 0));
-                            list.add(new VarInsnNode(ALOAD, 1));
-                            list.add(new VarInsnNode(FLOAD, 2));
-                            list.add(new VarInsnNode(FLOAD, 3));
-                            list.add(new VarInsnNode(FLOAD, 4));
-                            list.add(new VarInsnNode(FLOAD, 5));
-                            list.add(new VarInsnNode(FLOAD, 6));
-                            list.add(new VarInsnNode(FLOAD, 7));
-                            list.add(new MethodInsnNode(INVOKESTATIC, Type.getInternalName(ModelHelper.class), "renderBipedPre", getMappedName("(Lbhm;Lsa;FFFFFF)V", "(Lnet/minecraft/client/model/ModelBiped;Lnet/minecraft/entity/Entity;FFFFFF)V"), false));
-                            continue;
-                        }
+                for (AbstractInsnNode node : method.instructions) {
+                    // Insert pre-hook right before the main rendering occurs
+                    if (node instanceof MethodInsnNode m &&
+                            m.owner.contains("net/minecraft/client/model/geom/ModelPart") &&
+                            m.name.equals("render")) {
+
+                        // Add original call first
+                        newList.add(node);
+
+                        // Inject ModelHelper.renderBipedPre()
+                        newList.add(new VarInsnNode(ALOAD, 0)); // this
+                        newList.add(new VarInsnNode(ALOAD, 1)); // PoseStack
+                        newList.add(new VarInsnNode(ALOAD, 2)); // VertexConsumer
+                        newList.add(new VarInsnNode(ILOAD, 3)); // packedLight
+                        newList.add(new VarInsnNode(ILOAD, 4)); // packedOverlay
+                        newList.add(new VarInsnNode(FLOAD, 5)); // red
+                        newList.add(new VarInsnNode(FLOAD, 6)); // green
+                        newList.add(new VarInsnNode(FLOAD, 7)); // blue
+                        newList.add(new VarInsnNode(FLOAD, 8)); // alpha
+
+                        newList.add(new MethodInsnNode(INVOKESTATIC,
+                                Type.getInternalName(ModelHelper.class),
+                                "renderBipedPre",
+                                "(Lnet/minecraft/client/model/HumanoidModel;Lcom/mojang/blaze3d/vertex/PoseStack;Lcom/mojang/blaze3d/vertex/VertexConsumer;IIFFFF)V",
+                                false));
+
+                        continue;
                     }
 
-                    if (node.getOpcode() == RETURN)
-                    {
-                        list.add(new VarInsnNode(ALOAD, 0));
-                        list.add(new VarInsnNode(ALOAD, 1));
-                        list.add(new VarInsnNode(FLOAD, 2));
-                        list.add(new VarInsnNode(FLOAD, 3));
-                        list.add(new VarInsnNode(FLOAD, 4));
-                        list.add(new VarInsnNode(FLOAD, 5));
-                        list.add(new VarInsnNode(FLOAD, 6));
-                        list.add(new VarInsnNode(FLOAD, 7));
-                        list.add(new MethodInsnNode(INVOKESTATIC, Type.getInternalName(ModelHelper.class), "renderBipedPost", getMappedName("(Lbhm;Lsa;FFFFFF)V", "(Lnet/minecraft/client/model/ModelBiped;Lnet/minecraft/entity/Entity;FFFFFF)V"), false));
+                    // Inject post-hook right before RETURN
+                    if (node.getOpcode() == RETURN) {
+                        newList.add(new VarInsnNode(ALOAD, 0));
+                        newList.add(new VarInsnNode(ALOAD, 1));
+                        newList.add(new VarInsnNode(ALOAD, 2));
+                        newList.add(new VarInsnNode(ILOAD, 3));
+                        newList.add(new VarInsnNode(ILOAD, 4));
+                        newList.add(new VarInsnNode(FLOAD, 5));
+                        newList.add(new VarInsnNode(FLOAD, 6));
+                        newList.add(new VarInsnNode(FLOAD, 7));
+                        newList.add(new VarInsnNode(FLOAD, 8));
+
+                        newList.add(new MethodInsnNode(INVOKESTATIC,
+                                Type.getInternalName(ModelHelper.class),
+                                "renderBipedPost",
+                                "(Lnet/minecraft/client/model/HumanoidModel;Lcom/mojang/blaze3d/vertex/PoseStack;Lcom/mojang/blaze3d/vertex/VertexConsumer;IIFFFF)V",
+                                false));
                     }
 
-                    list.add(node);
+                    newList.add(node);
                 }
 
                 method.instructions.clear();
-                method.instructions.add(list);
-                flag = true;
-            }
-            else if (method.name.equals(getMappedName("a", "setRotationAngles")) && method.desc.equals(getMappedName("(FFFFFFLsa;)V", "(FFFFFFLnet/minecraft/entity/Entity;)V")))
-            {
-                InsnList list = new InsnList();
-
-                for (int i = 0; i < method.instructions.size(); ++i)
-                {
-                    AbstractInsnNode node = method.instructions.get(i);
-
-//					if (node.getOpcode() == RETURN)
-//					{
-//						list.add(new VarInsnNode(ALOAD, 0));
-//						list.add(new VarInsnNode(FLOAD, 1));
-//						list.add(new VarInsnNode(FLOAD, 2));
-//						list.add(new VarInsnNode(FLOAD, 3));
-//						list.add(new VarInsnNode(FLOAD, 4));
-//						list.add(new VarInsnNode(FLOAD, 5));
-//						list.add(new VarInsnNode(FLOAD, 6));
-//						list.add(new VarInsnNode(ALOAD, 7));
-//						list.add(new MethodInsnNode(INVOKESTATIC, Type.getInternalName(ModelHelper.class), "setRotationAngles", getMappedName("(Lbhm;FFFFFFFLsa;)V", "(Lnet/minecraft/client/model/ModelBiped;FFFFFFLnet/minecraft/entity/Entity;)V"), false));
-//					}
-
-                    list.add(node);
-                }
-
-                method.instructions.clear();
-                method.instructions.add(list);
-                flag = true;
+                method.instructions.add(newList);
+                LOGGER.debug("Injected ModelHelper.renderBipedPre/Post in {}", unobfClass);
+                modified = true;
             }
         }
 
-        return flag;
+        return modified;
     }
 
     @Override
-    public boolean processFields(List<FieldNode> fields)
-    {
+    public boolean processFields(List<FieldNode> fields) {
         return true;
     }
 
     @Override
-    public void setupMappings()
-    {
-        varPlayer = getMappedName("yz", "net/minecraft/entity/player/EntityPlayer");
-        varEntity = getMappedName("sa", "net/minecraft/entity/Entity");
+    public void setupMappings() {
+        varPlayer = "net/minecraft/world/entity/player/Player";
+        varEntity = "net/minecraft/world/entity/Entity";
     }
 }

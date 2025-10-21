@@ -1,50 +1,87 @@
 package com.fiskmods.lightsabers.common.entity;
 
-import net.minecraft.entity.Entity;
-import net.minecraft.entity.EntityLivingBase;
-import net.minecraft.nbt.NBTTagCompound;
-import net.minecraft.world.World;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.network.protocol.Packet;
+import net.minecraft.network.protocol.game.ClientGamePacketListener;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.network.syncher.EntityDataSerializers;
+import net.minecraft.network.syncher.SynchedEntityData;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.level.Level;
+import net.minecraftforge.network.NetworkHooks;
 
-public class EntityForceLightning extends Entity
-{
-    public EntityLivingBase entity;
+import java.util.Optional;
+import java.util.UUID;
 
-    public EntityForceLightning(World world)
-    {
-        super(world);
-        setSize(0.1F, 0.1F);
-        ignoreFrustumCheck = true;
-        setRenderDistanceWeight(100D);
+public class EntityForceLightning extends Entity {
+
+    private static final EntityDataAccessor<Optional<UUID>> CASTER_ID =
+            SynchedEntityData.defineId(EntityForceLightning.class, EntityDataSerializers.OPTIONAL_UUID);
+
+    private LivingEntity caster;
+
+    public EntityForceLightning(EntityType<? extends EntityForceLightning> type, Level level) {
+        super(type, level);
+        this.noPhysics = true;
     }
 
-    public EntityForceLightning(World world, EntityLivingBase entity)
-    {
-        this(world);
-        this.entity = entity;
-        setLocationAndAngles(entity.posX, entity.posY + entity.height / 2, entity.posZ, entity.rotationYaw, entity.rotationPitch);
+    public EntityForceLightning(Level level, LivingEntity caster) {
+        this(ModEntities.FORCE_LIGHTNING.get(), level);
+        this.caster = caster;
+        this.entityData.set(CASTER_ID, Optional.of(caster.getUUID()));
+        setPos(caster.getX(), caster.getEyeY() - 0.2F, caster.getZ());
     }
 
     @Override
-    public void onUpdate()
-    {
-        if (++ticksExisted > 2)
-        {
-            setDead();
+    protected void defineSynchedData() {
+        this.entityData.define(CASTER_ID, Optional.empty());
+    }
+
+    public LivingEntity getCaster() {
+        if (caster == null) {
+            Optional<UUID> opt = entityData.get(CASTER_ID);
+            if (opt.isPresent()) {
+                Entity e = level().getEntity(opt.get());
+                if (e instanceof LivingEntity living) {
+                    caster = living;
+                }
+            }
+        }
+        return caster;
+    }
+
+    @Override
+    public void tick() {
+        super.tick();
+        LivingEntity c = getCaster();
+        if (c == null || !c.isAlive()) {
+            discard();
+            return;
+        }
+
+        setPos(c.getX(), c.getEyeY() - 0.2, c.getZ());
+
+        if (tickCount > 2) {
+            discard();
         }
     }
 
     @Override
-    public void readEntityFromNBT(NBTTagCompound nbt)
-    {
+    protected void readAdditionalSaveData(CompoundTag tag) {
+        if (tag.hasUUID("Caster")) {
+            entityData.set(CASTER_ID, Optional.of(tag.getUUID("Caster")));
+        }
     }
 
     @Override
-    public void writeEntityToNBT(NBTTagCompound nbt)
-    {
+    protected void addAdditionalSaveData(CompoundTag tag) {
+        entityData.get(CASTER_ID).ifPresent(uuid -> tag.putUUID("Caster", uuid));
     }
 
     @Override
-    protected void entityInit()
-    {
+    public Packet<ClientGamePacketListener> getAddEntityPacket() {
+        return NetworkHooks.getEntitySpawningPacket(this);
     }
 }

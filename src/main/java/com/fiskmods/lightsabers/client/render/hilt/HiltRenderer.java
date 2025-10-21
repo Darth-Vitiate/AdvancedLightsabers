@@ -3,66 +3,71 @@ package com.fiskmods.lightsabers.client.render.hilt;
 import com.fiskmods.lightsabers.Lightsabers;
 import com.fiskmods.lightsabers.common.hilt.Hilt;
 import com.fiskmods.lightsabers.common.lightsaber.PartType;
+import net.minecraft.client.model.Model;
+import net.minecraft.resources.ResourceLocation;
 
-import fiskfille.utils.registry.FiskRegistryEntry;
-import fiskfille.utils.registry.FiskSimpleRegistry;
-import net.minecraft.client.model.ModelBase;
-import net.minecraft.util.ResourceLocation;
+import java.util.HashMap;
+import java.util.Map;
 
-public abstract class HiltRenderer extends FiskRegistryEntry<HiltRenderer>
-{
-    public static final FiskSimpleRegistry<HiltRenderer> REGISTRY = new FiskSimpleRegistry(Lightsabers.MODID, "graflex");
-    
-    public static void register(String key, HiltRenderer value)
-    {
-        REGISTRY.putObject(key, value);
+/**
+ * Base renderer for all lightsaber hilts.
+ * Modernized for Forge 1.20.1 — removes FiskRegistryEntry dependency.
+ */
+public abstract class HiltRenderer {
+    private static final Map<String, HiltRenderer> REGISTRY = new HashMap<>();
+
+    public static void register(String key, HiltRenderer renderer) {
+        REGISTRY.put(key.toLowerCase(), renderer);
     }
-    
-    public static void register(Hilt key, HiltRenderer value)
-    {
-        register(key.delegate.name().toString(), value);
-    }
-    
-    public static HiltRenderer get(String key)
-    {
-        return REGISTRY.getObject(key);
-    }
-    
-    public static HiltRenderer get(Hilt key)
-    {
-        return key == null ? null : get(key.delegate.name().toString());
-    }
-    
-    public abstract ModelBase getEmitter();
-    
-    public abstract ModelBase getSwitchSection();
-    
-    public abstract ModelBase getBody();
-    
-    public abstract ModelBase getPommel();
-    
-    public ModelBase getModel(PartType type)
-    {
-        switch (type)
-        {
-        case EMITTER:
-            return getEmitter();
-        case SWITCH_SECTION:
-            return getSwitchSection();
-        case BODY:
-            return getBody();
-        default:
-            return getPommel();
+
+    public static void register(Hilt hilt, HiltRenderer renderer) {
+        if (hilt != null && hilt.getId() != null) {
+            register(hilt.getId().toString(), renderer);
         }
     }
-    
-    public ResourceLocation getTexture(PartType type)
-    {
-        return new ResourceLocation(getDomain(), String.format("textures/models/lightsaber/%s_%s.png", type.textureName, getRegistryName().getPath()));
+
+    public static HiltRenderer get(String key) {
+        return REGISTRY.get(key.toLowerCase());
     }
-    
-    public final Hilt getHilt()
-    {
-        return Hilt.REGISTRY.getObject(delegate.name().toString());//TODO check
+
+    public static HiltRenderer get(Hilt hilt) {
+        if (hilt == null || hilt.getId() == null) return null;
+        return get(hilt.getId().toString());
+    }
+
+    // ===== MODEL ACCESSORS =====
+    public abstract Model getEmitter();
+    public abstract Model getSwitchSection();
+    public abstract Model getBody();
+    public abstract Model getPommel();
+
+    public Model getModel(PartType type) {
+        return switch (type) {
+            case EMITTER -> getEmitter();
+            case SWITCH_SECTION -> getSwitchSection();
+            case BODY -> getBody();
+            case POMMEL -> getPommel();
+        };
+    }
+
+    public ResourceLocation getTexture(PartType type) {
+        return new ResourceLocation(Lightsabers.MODID,
+                String.format("textures/models/lightsaber/%s_%s.png",
+                        type.textureName,
+                        getRegistryName()));
+    }
+
+    public String getRegistryName() {
+        // Derived key name used in registration
+        return REGISTRY.entrySet()
+                .stream()
+                .filter(e -> e.getValue() == this)
+                .map(Map.Entry::getKey)
+                .findFirst()
+                .orElse("unknown");
+    }
+
+    public final Hilt getHilt() {
+        return Hilt.REGISTRY.get(getRegistryName());
     }
 }

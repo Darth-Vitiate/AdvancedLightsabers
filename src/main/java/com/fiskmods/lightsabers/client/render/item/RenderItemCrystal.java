@@ -1,59 +1,66 @@
-//package com.fiskmods.lightsabers.client.render.item; //TODO
-//
-//import org.lwjgl.opengl.GL11;
-//
-//import com.fiskmods.lightsabers.common.item.ItemCrystal;
-//import com.fiskmods.lightsabers.common.tileentity.TileEntityCrystal;
-//
-//import net.minecraft.client.renderer.tileentity.TileEntityRendererDispatcher;
-//import net.minecraft.item.ItemStack;
-//import net.minecraftforge.client.IItemRenderer;
-//
-//public class RenderItemCrystal implements IItemRenderer
-//{
-//    private final TileEntityCrystal tile = new TileEntityCrystal();
-//
-//    @Override
-//    public boolean handleRenderType(ItemStack item, ItemRenderType type)
-//    {
-//        return true;
-//    }
-//
-//    @Override
-//    public boolean shouldUseRenderHelper(ItemRenderType type, ItemStack item, ItemRendererHelper helper)
-//    {
-//        return type != ItemRenderType.EQUIPPED;
-//    }
-//
-//    @Override
-//    public void renderItem(ItemRenderType type, ItemStack item, Object... data)
-//    {
-//        float scale = 2.5F;
-//
-//        if (type == ItemRenderType.EQUIPPED_FIRST_PERSON)
-//        {
-//            GL11.glTranslatef(-0.5F, 0.5F, -0.5F);
-//        }
-//        else if (type == ItemRenderType.EQUIPPED)
-//        {
-//            GL11.glRotatef(20, 0, 0, 1);
-//            GL11.glRotatef(15, 1, 0, 0);
-//            GL11.glTranslatef(-0.275F, -0.05F, -0.85F);
-//            scale /= 1.75F;
-//        }
-//        else if (type == ItemRenderType.ENTITY)
-//        {
-//            GL11.glTranslatef(-1.25F, -0.5F, -1.25F);
-//        }
-//        else if (type == ItemRenderType.INVENTORY)
-//        {
-//            GL11.glRotatef(180, 0, 1, 0);
-//            GL11.glTranslatef(-0.5F, -1, -0.5F);
-//        }
-//
-//        GL11.glScalef(scale, scale, scale);
-//        tile.setColor(ItemCrystal.get(item));
-//        TileEntityRendererDispatcher.instance.renderTileEntityAt(tile, 0, 0, 0, 1);
-//        GL11.glColor4f(1, 1, 1, 1);
-//    }
-//}
+package com.fiskmods.lightsabers.client.render.item;
+
+import com.fiskmods.lightsabers.common.item.ItemCrystal;
+import com.fiskmods.lightsabers.common.tileentity.TileEntityCrystal;
+import com.mojang.blaze3d.vertex.PoseStack;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.world.item.ItemDisplayContext;
+import net.minecraft.world.item.ItemStack;
+
+/**
+ * Modern replacement for the old IItemRenderer version.
+ * Works in Forge 1.20.1+ using BlockEntityWithoutLevelRenderer.
+ */
+public class RenderItemCrystal extends BlockEntityWithoutLevelRenderer {
+
+    private final TileEntityCrystal tile = new TileEntityCrystal();
+
+    public RenderItemCrystal() {
+        super(Minecraft.getInstance().getBlockEntityRenderDispatcher(),
+                Minecraft.getInstance().getEntityModels());
+    }
+
+    @Override
+    public void renderByItem(ItemStack stack,
+                             ItemDisplayContext context,
+                             PoseStack poseStack,
+                             MultiBufferSource buffer,
+                             int packedLight,
+                             int packedOverlay) {
+
+        // Apply scale / rotation depending on render context
+        poseStack.pushPose();
+        float scale = 2.5F;
+
+        switch (context) {
+            case FIRST_PERSON_LEFT_HAND, FIRST_PERSON_RIGHT_HAND -> {
+                poseStack.translate(-0.5F, 0.5F, -0.5F);
+            }
+            case THIRD_PERSON_LEFT_HAND, THIRD_PERSON_RIGHT_HAND -> {
+                poseStack.mulPose(net.minecraft.util.Mth.YP.rotationDegrees(20));
+                poseStack.mulPose(net.minecraft.util.Mth.XP.rotationDegrees(15));
+                poseStack.translate(-0.275F, -0.05F, -0.85F);
+                scale /= 1.75F;
+            }
+            case GROUND -> poseStack.translate(-1.25F, -0.5F, -1.25F);
+            case GUI -> {
+                poseStack.mulPose(net.minecraft.util.Mth.YP.rotationDegrees(180));
+                poseStack.translate(-0.5F, -1F, -0.5F);
+            }
+            default -> {}
+        }
+
+        poseStack.scale(scale, scale, scale);
+
+        // Set crystal color
+        tile.setColor(ItemCrystal.get(stack));
+
+        // Render the block entity directly
+        Minecraft.getInstance().getBlockEntityRenderDispatcher()
+                .renderItem(tile, poseStack, buffer, packedLight, packedOverlay);
+
+        poseStack.popPose();
+    }
+}

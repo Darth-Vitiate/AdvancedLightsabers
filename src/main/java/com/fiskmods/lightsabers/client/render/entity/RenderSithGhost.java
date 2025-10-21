@@ -2,27 +2,27 @@ package com.fiskmods.lightsabers.client.render.entity;
 
 import com.fiskmods.lightsabers.Lightsabers;
 import com.fiskmods.lightsabers.client.model.ModelSithGhost;
+import com.fiskmods.lightsabers.common.entity.EntitySithGhost;
+import net.minecraft.client.model.HumanoidModel;
+import net.minecraft.client.renderer.entity.EntityRendererProvider;
+import net.minecraft.client.renderer.entity.HumanoidMobRenderer;
+import net.minecraft.resources.ResourceLocation;
 
-import net.minecraftforge.fml.relauncher.Side;
-import net.minecraftforge.fml.relauncher.SideOnly;
-import net.minecraft.client.renderer.entity.RenderBiped;
-import net.minecraft.client.renderer.entity.RenderManager;
-import net.minecraft.entity.Entity;
-import net.minecraft.util.ResourceLocation;
+/**
+ * Modernized Sith Ghost renderer (Forge 1.20.1+)
+ */
+public class RenderSithGhost extends HumanoidMobRenderer<EntitySithGhost, HumanoidModel<EntitySithGhost>> {
 
-@SideOnly(Side.CLIENT)
-public class RenderSithGhost extends RenderBiped
-{
-    private static final ResourceLocation textures = new ResourceLocation(Lightsabers.MODID, "textures/models/sith_ghost.png");
+    private static final ResourceLocation TEXTURE =
+            new ResourceLocation(Lightsabers.MODID, "textures/models/sith_ghost.png");
 
-    public RenderSithGhost(RenderManager renderManagerIn)
-    {
-        super(renderManagerIn, new ModelSithGhost(), 0.5F);
+    public RenderSithGhost(EntityRendererProvider.Context context) {
+        // ModelSithGhost must extend HumanoidModel<EntitySithGhost>
+        super(context, new ModelSithGhost(context.bakeLayer(ModelSithGhost.LAYER_LOCATION)), 0.5F);
     }
 
-//    @Override //TODO
-//    protected ResourceLocation getEntityTexture(Entity entity)
-//    {
-//        return textures;
-//    }
+    @Override
+    public ResourceLocation getTextureLocation(EntitySithGhost entity) {
+        return TEXTURE;
+    }
 }

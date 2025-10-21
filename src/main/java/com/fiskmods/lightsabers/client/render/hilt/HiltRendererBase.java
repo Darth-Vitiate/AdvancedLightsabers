@@ -1,16 +1,18 @@
 package com.fiskmods.lightsabers.client.render.hilt;
 
-import net.minecraft.client.model.ModelBase;
+import net.minecraft.client.model.Model;
 
-public class HiltRendererBase extends HiltRenderer
-{
-    public final ModelBase emitter;
-    public final ModelBase switchSection;
-    public final ModelBase body;
-    public final ModelBase pommel;
+/**
+ * Simple container implementation for a lightsaber hilt renderer.
+ * Modern Forge 1.20.1 version — replaces ModelBase with Model.
+ */
+public class HiltRendererBase extends HiltRenderer {
+    public final Model emitter;
+    public final Model switchSection;
+    public final Model body;
+    public final Model pommel;
 
-    public HiltRendererBase(ModelBase emitter, ModelBase switchSection, ModelBase body, ModelBase pommel)
-    {
+    public HiltRendererBase(Model emitter, Model switchSection, Model body, Model pommel) {
         this.emitter = emitter;
         this.switchSection = switchSection;
         this.body = body;
@@ -18,26 +20,22 @@ public class HiltRendererBase extends HiltRenderer
     }
 
     @Override
-    public ModelBase getEmitter()
-    {
+    public Model getEmitter() {
         return emitter;
     }
 
     @Override
-    public ModelBase getSwitchSection()
-    {
+    public Model getSwitchSection() {
         return switchSection;
     }
 
     @Override
-    public ModelBase getBody()
-    {
+    public Model getBody() {
         return body;
     }
 
     @Override
-    public ModelBase getPommel()
-    {
+    public Model getPommel() {
         return pommel;
     }
 }

@@ -1,143 +1,154 @@
-//package com.fiskmods.lightsabers.client.render.item; //TODO
-//
-//import org.lwjgl.opengl.GL11;
-//
-//import com.fiskmods.lightsabers.common.hilt.HiltManager;
-//import com.fiskmods.lightsabers.common.lightsaber.FocusingCrystal;
-//import com.fiskmods.lightsabers.common.lightsaber.LightsaberData;
-//import com.fiskmods.lightsabers.helper.ALRenderHelper;
-//import com.fiskmods.lightsabers.helper.ModelHelper;
-//
-//import net.minecraft.client.renderer.Tessellator;
-//import net.minecraft.entity.EntityLivingBase;
-//import net.minecraft.entity.item.EntityItem;
-//import net.minecraft.item.ItemStack;
-//import net.minecraftforge.client.IItemRenderer;
-//
-//public class RenderItemLightsaber implements IItemRenderer
-//{
-//    @Override
-//    public boolean handleRenderType(ItemStack item, ItemRenderType type)
-//    {
-//        return true;
-//    }
-//
-//    @Override
-//    public boolean shouldUseRenderHelper(ItemRenderType type, ItemStack item, ItemRendererHelper helper)
-//    {
-//        return type == ItemRenderType.ENTITY;
-//    }
-//
-//    @Override
-//    public void renderItem(ItemRenderType type, ItemStack stack, Object... args)
-//    {
-//        LightsaberData data = LightsaberData.get(stack);
-//        GL11.glPushMatrix();
-//        
-//        if (type == ItemRenderType.EQUIPPED_FIRST_PERSON)
-//        {
-//            GL11.glRotatef(-100, 0, 1, 0);
-//            GL11.glRotatef(-150, 1, 0, 0);
-//            GL11.glRotatef(5, 0, 0, 1);
-//            GL11.glTranslatef(0, 0.275F, 0.85F);
-//
-//            float scale = 0.2F;
-//            GL11.glScalef(scale, scale, scale);
-//            ALRenderHelper.renderLightsaber(stack, false);
-//        }
-//        else if (type == ItemRenderType.EQUIPPED)
-//        {
-//            GL11.glTranslatef(0.7F, 0.3F, 0);
-//            GL11.glRotatef(-150, 0, 0, 1);
-//            GL11.glRotatef(-85, 0, 1, 0);
-//
-//            if (args[1] instanceof EntityLivingBase)
-//            {
-//                ModelHelper.applyLightsaberItemRotation((EntityLivingBase) args[1], stack);
-//            }
-//
-//            float scale = 0.175F;
-//            GL11.glScalef(scale, scale, scale);
-//            ALRenderHelper.renderLightsaber(data, stack, true);
-//        }
-//        else if (type == ItemRenderType.ENTITY)
-//        {
-//            GL11.glRotatef(180, 1, 0, 0);
-//            GL11.glRotatef(180, 0, 1, 0);
-//            
-//            float scale = 0.3F;
-//            GL11.glScalef(scale, scale, scale);
-//            
-//            if (((EntityItem) args[1]).hoverStart != 0)
-//            {
-//                GL11.glTranslatef(0, -data.getHeight() / 48, 0);
-//            }
-//            
-//            if (stack.hasDisplayName() && (stack.getDisplayName().equals("Dinnerbone") || stack.getDisplayName().equals("Grumm")))
-//            {
-//                GL11.glRotatef(180, 1, 0, 0);
-//            }
-//            
-//            ALRenderHelper.renderLightsaberHilt(data);
-//        }
-//        else if (type == ItemRenderType.INVENTORY)
-//        {
-//            Tessellator tessellator = Tessellator.instance;
-//            float[] rgb = data.getRGB(stack);
-//            float triangle = 4;
-//            
-//            GL11.glDisable(GL11.GL_LIGHTING);
-//            GL11.glDisable(GL11.GL_TEXTURE_2D);
-//            GL11.glColor4f(rgb[0], rgb[1], rgb[2], 1);
-//            tessellator.startDrawingQuads();
-//            tessellator.addVertex(triangle / 2, triangle / 2, 0);
-//            tessellator.addVertex(triangle, 0, 0);
-//            tessellator.addVertex(0, 0, 0);
-//            tessellator.addVertex(0, triangle, 0);
-//            tessellator.draw();
-//
-//            if (data.hasFocusingCrystal(FocusingCrystal.INVERTING))
-//            {
-//                triangle /= 1.5F;
-//                GL11.glPushMatrix();
-//                GL11.glColor4f(0, 0, 0, 1);
-//                GL11.glTranslatef(triangle / 8, triangle / 8, 0);
-//                tessellator.startDrawingQuads();
-//                tessellator.addVertex(triangle / 2, triangle / 2, 0);
-//                tessellator.addVertex(triangle, 0, 0);
-//                tessellator.addVertex(0, 0, 0);
-//                tessellator.addVertex(0, triangle, 0);
-//                tessellator.draw();
-//                GL11.glPopMatrix();
-//            }
-//
-//            GL11.glEnable(GL11.GL_TEXTURE_2D);
-//            GL11.glEnable(GL11.GL_LIGHTING);
-//            GL11.glColor4f(1, 1, 1, 1);
-//            GL11.glTranslatef(-2, 3, 0);
-//            GL11.glScalef(10, 10, 10);
-//            GL11.glTranslatef(1, 0.5F, 1);
-//            GL11.glScalef(1, 1, -1);
-//            GL11.glRotatef(210, 1, 0, 0);
-//            GL11.glRotatef(45, 0, 1, 0);
-//            GL11.glRotatef(-90, 0, 1, 0);
-//            GL11.glRotatef(-20, 0, 0, 1);
-//            GL11.glRotatef(-45, 1, 0, 0);
-//            GL11.glRotatef(180, 1, 0, 0);
-//            GL11.glRotatef(-110, 0, 1, 0);
-//            
-//            if (stack.hasDisplayName() && (stack.getDisplayName().equals("Dinnerbone") || stack.getDisplayName().equals("Grumm")))
-//            {
-//                GL11.glRotatef(180, 1, 0, 0);
-//            }
-//            
-//            GL11.glTranslatef(0, 0.05F, 0);
-//
-//            float scale = 0.5F;
-//            GL11.glScalef(scale, scale, scale);
-//            ALRenderHelper.renderLightsaberHilt(data);
-//        }
-//        
-//        GL11.glPopMatrix();
-//    }
-//}
+package com.fiskmods.lightsabers.client.render.item;
+
+import com.fiskmods.lightsabers.common.lightsaber.FocusingCrystal;
+import com.fiskmods.lightsabers.common.lightsaber.LightsaberData;
+import com.fiskmods.lightsabers.helper.ALRenderHelper;
+import com.fiskmods.lightsabers.helper.ModelHelper;
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.blaze3d.vertex.VertexConsumer;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
+import net.minecraft.client.renderer.MultiBufferSource;
+import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.Tesselator;
+import net.minecraft.client.renderer.vertex.DefaultVertexFormat;
+import net.minecraft.client.renderer.vertex.VertexFormat;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.item.ItemEntity;
+import net.minecraft.world.item.ItemDisplayContext;
+import net.minecraft.world.item.ItemStack;
+import com.mojang.math.Axis;
+
+/**
+ * Modern Forge 1.20.1 renderer for the standard lightsaber item.
+ * Fully replaces legacy IItemRenderer + GL11 pipeline.
+ */
+public class RenderItemLightsaber extends BlockEntityWithoutLevelRenderer {
+
+    public RenderItemLightsaber() {
+        super(Minecraft.getInstance().getBlockEntityRenderDispatcher(),
+                Minecraft.getInstance().getEntityModels());
+    }
+
+    @Override
+    public void renderByItem(ItemStack stack,
+                             ItemDisplayContext context,
+                             PoseStack poseStack,
+                             MultiBufferSource buffer,
+                             int packedLight,
+                             int packedOverlay) {
+
+        LightsaberData data = LightsaberData.get(stack);
+        poseStack.pushPose();
+
+        switch (context) {
+
+            // ---------- FIRST PERSON ----------
+            case FIRST_PERSON_LEFT_HAND, FIRST_PERSON_RIGHT_HAND -> {
+                poseStack.mulPose(Axis.YP.rotationDegrees(-100));
+                poseStack.mulPose(Axis.XP.rotationDegrees(-150));
+                poseStack.mulPose(Axis.ZP.rotationDegrees(5));
+                poseStack.translate(0, 0.275F, 0.85F);
+                poseStack.scale(0.2F, 0.2F, 0.2F);
+                ALRenderHelper.renderLightsaber(stack, false);
+            }
+
+            // ---------- THIRD PERSON ----------
+            case THIRD_PERSON_LEFT_HAND, THIRD_PERSON_RIGHT_HAND -> {
+                poseStack.translate(0.7F, 0.3F, 0);
+                poseStack.mulPose(Axis.ZP.rotationDegrees(-150));
+                poseStack.mulPose(Axis.YP.rotationDegrees(-85));
+
+                Minecraft mc = Minecraft.getInstance();
+                if (mc.player instanceof LivingEntity living)
+                    ModelHelper.applyLightsaberItemRotation(living, stack);
+
+                poseStack.scale(0.175F, 0.175F, 0.175F);
+                ALRenderHelper.renderLightsaber(data, stack, true);
+            }
+
+            // ---------- GROUND / ENTITY ----------
+            case GROUND -> {
+                poseStack.mulPose(Axis.XP.rotationDegrees(180));
+                poseStack.mulPose(Axis.YP.rotationDegrees(180));
+
+                float scale = 0.3F;
+                poseStack.scale(scale, scale, scale);
+
+                if (stack.hasCustomHoverName()) {
+                    String name = stack.getHoverName().getString();
+                    if ("Dinnerbone".equals(name) || "Grumm".equals(name))
+                        poseStack.mulPose(Axis.XP.rotationDegrees(180));
+                }
+
+                ALRenderHelper.renderLightsaberHilt(data);
+            }
+
+            // ---------- GUI / INVENTORY ----------
+            case GUI -> renderInventoryIcon(data, stack, poseStack, buffer);
+
+            // ---------- FALLBACK ----------
+            default -> {
+                poseStack.scale(0.2F, 0.2F, 0.2F);
+                ALRenderHelper.renderLightsaber(data, stack, true);
+            }
+        }
+
+        poseStack.popPose();
+    }
+
+    /** Draws the inventory-triangle color preview like the original Tessellator-based version. */
+    private void renderInventoryIcon(LightsaberData data,
+                                     ItemStack stack,
+                                     PoseStack poseStack,
+                                     MultiBufferSource buffer) {
+
+        poseStack.pushPose();
+        float[] rgb = data.getRGB(stack);
+        float triangle = 4F;
+
+        var builder = buffer.getBuffer(RenderType.solid());
+        var tesselator = Tesselator.getInstance();
+
+        // base colored quad
+        drawQuad(poseStack, builder, 0, 0, triangle, triangle, rgb);
+
+        // inverting crystal overlay
+        if (data.hasFocusingCrystal(FocusingCrystal.INVERTING)) {
+            float[] black = {0, 0, 0};
+            float small = triangle / 1.5F;
+            poseStack.pushPose();
+            poseStack.translate(small / 8, small / 8, 0);
+            drawQuad(poseStack, builder, 0, 0, small, small, black);
+            poseStack.popPose();
+        }
+
+        // 3D hilt miniature render
+        poseStack.translate(-2, 3, 0);
+        poseStack.scale(10, 10, 10);
+        poseStack.translate(1, 0.5F, 1);
+        poseStack.scale(1, 1, -1);
+        poseStack.mulPose(Axis.XP.rotationDegrees(210));
+        poseStack.mulPose(Axis.YP.rotationDegrees(-45));
+        poseStack.mulPose(Axis.ZP.rotationDegrees(-20));
+        poseStack.mulPose(Axis.XP.rotationDegrees(-45));
+        poseStack.mulPose(Axis.XP.rotationDegrees(180));
+        poseStack.mulPose(Axis.YP.rotationDegrees(-110));
+
+        float scale = 0.5F;
+        poseStack.scale(scale, scale, scale);
+        ALRenderHelper.renderLightsaberHilt(data);
+
+        poseStack.popPose();
+    }
+
+    private void drawQuad(PoseStack stack,
+                          VertexConsumer vc,
+                          float x, float y, float w, float h,
+                          float[] color) {
+        vc.vertex(stack.last().pose(), x, y, 0).color(color[0], color[1], color[2], 1F).endVertex();
+        vc.vertex(stack.last().pose(), x + w, y, 0).color(color[0], color[1], color[2], 1F).endVertex();
+        vc.vertex(stack.last().pose(), x + w, y + h, 0).color(color[0], color[1], color[2], 1F).endVertex();
+        vc.vertex(stack.last().pose(), x, y + h, 0).color(color[0], color[1], color[2], 1F).endVertex();
+    }
+}

@@ -1,71 +1,88 @@
 package com.fiskmods.lightsabers.client.particle;
 
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.particle.Particle;
-import net.minecraft.client.renderer.BufferBuilder;
-import net.minecraft.client.renderer.Tessellator;
-import net.minecraft.entity.Entity;
-import net.minecraft.world.World;
+import net.minecraft.client.particle.ParticleRenderType;
+import net.minecraft.client.particle.SpriteSet;
+import net.minecraft.client.particle.TextureSheetParticle;
+import net.minecraft.core.particles.SimpleParticleType;
 
-public class EntityALHealFX extends EntityALFX
-{
-    private float flameScale;
+/**
+ * Healing-style particle for Advanced Lightsabers.
+ * Modern replacement for the 1.12.2 EntityALHealFX.
+ */
+public class EntityALHealFX extends TextureSheetParticle {
 
-    public EntityALHealFX(World world, double x, double y, double z, double motionX, double motionY, double motionZ)
-    {
-        super(world, x, y, z, motionX, motionY, motionZ);
-        this.motionX = motionX;
-        this.motionY = motionY;
-        this.motionZ = motionZ;
-        flameScale = particleScale;
-        particleRed = particleGreen = particleBlue = 1.0F;
-        particleMaxAge = (int) (10.0D / (Math.random() * 0.25D + 0.75D)) + 10;
-        canCollide = true;
-        setParticleTextureIndex(0);
+    private final SpriteSet sprites;
+    private final float initialScale;
+
+    protected EntityALHealFX(ClientLevel level,
+                             double x, double y, double z,
+                             double motionX, double motionY, double motionZ,
+                             SpriteSet spriteSet) {
+        super(level, x, y, z, motionX, motionY, motionZ);
+        this.sprites = spriteSet;
+
+        this.initialScale = this.quadSize;            // starting particle scale
+        this.rCol = this.gCol = this.bCol = 1.0F;     // white glow
+        this.lifetime = (int)(10.0D / (this.random.nextDouble() * 0.25D + 0.75D)) + 10;
+
+        this.setSpriteFromAge(spriteSet);
+        this.hasPhysics = true;
     }
 
     @Override
-    public void renderParticle(BufferBuilder buffer, Entity entityIn, float partialTicks, float f, float f1, float f2, float f3, float f4)
-    {
-        float f5 = (particleAge + partialTicks) / particleMaxAge;
-        particleScale = flameScale * (1.0F - f5 * f5 * 0.5F);
-        super.renderParticle(buffer, entityIn, partialTicks, f, f1, f2, f3, f4);
-    }
+    public void tick() {
+        this.xo = this.x;
+        this.yo = this.y;
+        this.zo = this.z;
+        this.yd += 0.001F;                      // gentle upward motion
 
-    @Override
-    public Particle multipleParticleScaleBy(float scale)
-    {
-        flameScale *= scale;
-        return this;
-    }
-
-    @Override
-    public int getBrightnessForRender(float partialTicks)
-    {
-        return 15728880;
-    }
-
-    @Override
-    public void onUpdate()
-    {
-        prevPosX = posX;
-        prevPosY = posY;
-        prevPosZ = posZ;
-        motionY += 0.001F;
-
-        if (particleAge++ >= particleMaxAge)
-        {
-        	setExpired();
+        if (this.age++ >= this.lifetime) {
+            this.remove();                      // expire when age exceeds lifetime
         }
 
-        setPosition(motionX, motionY, motionZ);
-        motionX *= 0.9599999785423279D;
-        motionY *= 0.9599999785423279D;
-        motionZ *= 0.9599999785423279D;
+        this.move(this.xd, this.yd, this.zd);   // apply motion
+        this.xd *= 0.96D;
+        this.yd *= 0.96D;
+        this.zd *= 0.96D;
 
-        if (onGround)
-        {
-            motionX *= 0.699999988079071D;
-            motionZ *= 0.699999988079071D;
+        if (this.onGround) {                    // damping on contact
+            this.xd *= 0.7D;
+            this.zd *= 0.7D;
+        }
+
+        // shrink slightly with age
+        float progress = (float)this.age / (float)this.lifetime;
+        this.quadSize = this.initialScale * (1.0F - progress * progress * 0.5F);
+        this.setSpriteFromAge(this.sprites);
+    }
+
+    @Override
+    public ParticleRenderType getRenderType() {
+        return ParticleRenderType.PARTICLE_SHEET_TRANSLUCENT; // glowing / alpha-based
+    }
+
+    /** Always render bright white like the old getBrightnessForRender */
+    @Override
+    protected int getLightColor(float partialTicks) {
+        return 0xF000F0; // 15728880 decimal
+    }
+
+    /** Provider for registration in the particle engine */
+    public static class Factory implements net.minecraft.client.particle.ParticleProvider<SimpleParticleType> {
+        private final SpriteSet spriteSet;
+
+        public Factory(SpriteSet spriteSet) {
+            this.spriteSet = spriteSet;
+        }
+
+        @Override
+        public Particle createParticle(SimpleParticleType type,
+                                       ClientLevel level,
+                                       double x, double y, double z,
+                                       double motionX, double motionY, double motionZ) {
+            return new EntityALHealFX(level, x, y, z, motionX, motionY, motionZ, spriteSet);
         }
     }
 }
